@@ -1,10 +1,11 @@
 # 1: Instalar fastAPI = pip install "fastapi[all]", incluye uvicorn
 # Iniciar el servidor: uvicorn main:app --reload
 
-from fastapi import FastAPI, Query
+from typing_extensions import Required
+from fastapi import FastAPI, Query, Path, Body
 from enum import Enum
 from typing import Union
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 app = FastAPI() # instancia de fastapi
 
@@ -54,16 +55,16 @@ fake_items_db = [{"item_name": "Foo"}, {"item_name": "Bar"}, {"item_name": "Baz"
 # http://127.0.0.1:8000/items/foo?short=true
 # http://127.0.0.1:8000/items/foo?short=on
 # http://127.0.0.1:8000/items/foo?short=yes
-@app.get("/items/{item_id}")
-async def read_item(item_id: str, q: Union[str, None] = None, short: bool = False):
-    item = {"item_id": item_id}
-    if q:
-        item.update({"q": q})
-    if not short:
-        item.update(
-            {"description": "This is an amazing item that has a long description"}
-        )
-    return item
+# @app.get("/items/{item_id}")
+# async def read_item(item_id: str, q: Union[str, None] = None, short: bool = False):
+#     item = {"item_id": item_id}
+#     if q:
+#         item.update({"q": q})
+#     if not short:
+#         item.update(
+#             {"description": "This is an amazing item that has a long description"}
+#         )
+#     return item
 
 # Multiples parametros por path y query
 @app.get("/users/{user_id}/items/{item_id}")
@@ -110,12 +111,12 @@ async def create_item(item: Item):
 async def create_item(item_id: int, item: Item):
     return {"item_id": item_id, **item.dict()}
 
-@app.put("/items/{item_id}")
-async def create_item(item_id: int, item: Item, q: str | None = None):
-    result = {"item_id": item_id, **item.dict()}
-    if q:
-        result.update({"q": q})
-    return result
+# @app.put("/items/{item_id}")
+# async def create_item(item_id: int, item: Item, q: str | None = None):
+#     result = {"item_id": item_id, **item.dict()}
+#     if q:
+#         result.update({"q": q})
+#     return result
 
 
 #Usar 'Query' para realizar validaciones de datos
@@ -173,4 +174,86 @@ async def read_items(
     results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
     if q:
         results.update({"q": q})
+    return results
+
+
+# Validaciones para los path params =>
+@app.get("/items/{item_id}")
+async def read_items(
+    item_id: int = Path(default= Required, title="The ID of the item to get"),
+    q: str | None = Query(default=None, alias="item-query"),
+):
+    results = {"item_id": item_id}
+    if q:
+        results.update({"q": q})
+    return results
+
+@app.put("/items/{item_id}")
+async def update_item(
+    *,
+    item_id: int = Path(default=Required, title="The ID of the item to get", ge=0, le=1000),
+    q: str | None = None,
+    item: Item | None = None,
+):
+    results = {"item_id": item_id}
+    if q:
+        results.update({"q": q})
+    if item:
+        results.update({"item": item})
+    return results
+
+class User(BaseModel):
+    username: str
+    full_name: str | None = None
+    
+@app.put("/items/{item_id}")
+async def update_item(item_id: int, item: Item, user: User):
+    results = {"item_id": item_id, "item": item, "user": user}
+    return results
+# {
+#     "item": {
+#         "name": "Foo",
+#         "description": "The pretender",
+#         "price": 42.0,
+#         "tax": 3.2
+#     },
+#     "user": {
+#         "username": "dave",
+#         "full_name": "Dave Grohl"
+#     }
+# }
+
+# si requiere un parametro adicional que no esta definido en una clase usa 'Body()'
+# @app.put("/items/{item_id}")
+# async def update_item(item_id: int, item: Item, user: User, importance: int = Body()):
+#     results = {"item_id": item_id, "item": item, "user": user, "importance": importance}
+#     return results
+# {
+#     "item": {
+#         "name": "Foo",
+#         "description": "The pretender",
+#         "price": 42.0,
+#         "tax": 3.2
+#     },
+#     "user": {
+#         "username": "dave",
+#         "full_name": "Dave Grohl"
+#     },
+#     "importance": 5
+# }
+
+
+# Validacion por medio de las clases con Pyudantic y BaseModel =>
+class Item2(BaseModel):
+    name: str
+    description: str | None = Field(
+        default=None, title="The description of the item", max_length=300
+    )
+    price: float = Field(gt=0, description="The price must be greater than zero")
+    tax: float | None = None
+
+
+@app.put("/items/{item_id}")
+async def update_item(item_id: int, item: Item2):
+    results = {"item_id": item_id, "item": item}
     return results
