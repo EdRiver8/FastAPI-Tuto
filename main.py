@@ -1,7 +1,7 @@
 # 1: Instalar fastAPI = pip install "fastapi[all]", incluye uvicorn
 # Iniciar el servidor: uvicorn main:app --reload
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from enum import Enum
 from typing import Union
 from pydantic import BaseModel
@@ -38,9 +38,9 @@ async def get_model(model_name: ModelName):
 # query params, no hacen parte del path, estan en key-value, van despues '?' en URl
 fake_items_db = [{"item_name": "Foo"}, {"item_name": "Bar"}, {"item_name": "Baz"}]
 # mostrar solo uno http://127.0.0.1:8000/items?skip=1&limit=1
-@app.get("/items")
-async def read_items(skip: int = 0, limit: int = 10): # var, tipo dato y valor defecto
-    return fake_items_db[skip : skip + limit] #desde skip hasta skip + limit
+# @app.get("/items")
+# async def read_items(skip: int = 0, limit: int = 10): # var, tipo dato y valor defecto
+#     return fake_items_db[skip : skip + limit] #desde skip hasta skip + limit
 
 # Parametros opcionales usando None por defecto y Union o |, q = quantity
 # http://127.0.0.1:8000/items/1?q=2
@@ -106,9 +106,9 @@ async def create_item(item: Item):
         item_dict.update({"price_with_tax": price_with_tax})
     return item_dict
 
-# @app.put("/items/{item_id}")
-# async def create_item(item_id: int, item: Item):
-#     return {"item_id": item_id, **item.dict()}
+@app.put("/items/{item_id}")
+async def create_item(item_id: int, item: Item):
+    return {"item_id": item_id, **item.dict()}
 
 @app.put("/items/{item_id}")
 async def create_item(item_id: int, item: Item, q: str | None = None):
@@ -116,3 +116,61 @@ async def create_item(item_id: int, item: Item, q: str | None = None):
     if q:
         result.update({"q": q})
     return result
+
+
+#Usar 'Query' para realizar validaciones de datos
+# @app.get("/items/")
+# async def read_items(q: str | None = Query(default=None, max_length=50)):
+#     results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
+#     if q:
+#         results.update({"q": q})
+#     return results
+
+# @app.get("/items/")
+# async def read_items(q: str | None = Query(default=None, min_length=3, max_length=50)):
+#     results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
+#     if q:
+#         results.update({"q": q})
+#     return results
+
+# @app.get("/items/")
+# async def read_items(
+#     q: str
+#     | None = Query(default=None, min_length=3, max_length=50, regex="^fixedquery$")
+# ):
+#     results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
+#     if q:
+#         results.update({"q": q})
+#     return results
+
+
+# recibir una lista de multiples parametros
+# @app.get("/items/")
+# async def read_items(q: list[str] | None = Query(default=None)):
+#     query_items = {"q": q}
+#     return query_items
+# http://localhost:8000/items/?q=foo&q=bar
+# con valores por defecto =>
+# @app.get("/items/")
+# async def read_items(q: list[str] = Query(default=["foo", "bar"])):
+#     query_items = {"q": q}
+#     return query_items
+# agregando MetaData
+@app.get("/items/")
+async def read_items(
+    q: str
+    | None = Query(
+        default=None,
+        alias="item-query",
+        title="Query string",
+        description="Query string for the items to search in the database that have a good match",
+        min_length=3,
+        max_length=50,
+        regex="^fixedquery$",
+        deprecated=True,
+    )
+):
+    results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
+    if q:
+        results.update({"q": q})
+    return results
