@@ -4,6 +4,7 @@
 from fastapi import FastAPI
 from enum import Enum
 from typing import Union
+from pydantic import BaseModel
 
 app = FastAPI() # instancia de fastapi
 
@@ -41,7 +42,7 @@ fake_items_db = [{"item_name": "Foo"}, {"item_name": "Bar"}, {"item_name": "Baz"
 async def read_items(skip: int = 0, limit: int = 10): # var, tipo dato y valor defecto
     return fake_items_db[skip : skip + limit] #desde skip hasta skip + limit
 
-# Parametros opcionales usando None por defecto, q = quantity
+# Parametros opcionales usando None por defecto y Union o |, q = quantity
 # http://127.0.0.1:8000/items/1?q=2
 # @app.get("/items/{item_id}")
 # async def read_item(item_id: str, q: Union[str, None] = None):
@@ -77,3 +78,41 @@ async def read_user_item(
             {"description": "This is an amazing item that has a long description"}
         )
     return item
+
+
+# request body = data que el cliente envia al servidor
+# response body = data que el servidor envia al cliente
+# se debe importar BaseModel de Pydantic y crear clases desde esta = request body
+class Item(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
+    tax: float | None = None
+
+# @app.post("/items/")
+# async def create_item(item: Item):
+#     return item
+# {
+#   "name": "Camisa",
+#   "description": "En manga corta, color verde",
+#   "price": 25,
+#   "tax": 0.12
+# }
+@app.post("/items/")
+async def create_item(item: Item):
+    item_dict = item.dict()
+    if item.tax:
+        price_with_tax = item.price + item.tax
+        item_dict.update({"price_with_tax": price_with_tax})
+    return item_dict
+
+# @app.put("/items/{item_id}")
+# async def create_item(item_id: int, item: Item):
+#     return {"item_id": item_id, **item.dict()}
+
+@app.put("/items/{item_id}")
+async def create_item(item_id: int, item: Item, q: str | None = None):
+    result = {"item_id": item_id, **item.dict()}
+    if q:
+        result.update({"q": q})
+    return result
