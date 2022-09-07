@@ -5,7 +5,7 @@ from typing_extensions import Required
 from fastapi import FastAPI, Query, Path, Body
 from enum import Enum
 from typing import Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, HttpUrl, EmailStr
 
 app = FastAPI() # instancia de fastapi
 
@@ -99,13 +99,13 @@ class Item(BaseModel):
 #   "price": 25,
 #   "tax": 0.12
 # }
-@app.post("/items/")
-async def create_item(item: Item):
-    item_dict = item.dict()
-    if item.tax:
-        price_with_tax = item.price + item.tax
-        item_dict.update({"price_with_tax": price_with_tax})
-    return item_dict
+# @app.post("/items/")
+# async def create_item(item: Item):
+#     item_dict = item.dict()
+#     if item.tax:
+#         price_with_tax = item.price + item.tax
+#         item_dict.update({"price_with_tax": price_with_tax})
+#     return item_dict
 
 @app.put("/items/{item_id}")
 async def create_item(item_id: int, item: Item):
@@ -206,10 +206,10 @@ class User(BaseModel):
     username: str
     full_name: str | None = None
     
-@app.put("/items/{item_id}")
-async def update_item(item_id: int, item: Item, user: User):
-    results = {"item_id": item_id, "item": item, "user": user}
-    return results
+# @app.put("/items/{item_id}")
+# async def update_item(item_id: int, item: Item, user: User):
+#     results = {"item_id": item_id, "item": item, "user": user}
+#     return results
 # {
 #     "item": {
 #         "name": "Foo",
@@ -244,16 +244,211 @@ async def update_item(item_id: int, item: Item, user: User):
 
 
 # Validacion por medio de las clases con Pyudantic y BaseModel =>
-class Item2(BaseModel):
+# class Item2(BaseModel):
+#     name: str
+#     description: str | None = Field(
+#         default=None, title="The description of the item", max_length=300
+#     )
+#     price: float = Field(gt=0, description="The price must be greater than zero")
+#     tax: float | None = None
+#     tags: list[str] = []
+
+
+# @app.put("/items/{item_id}")
+# async def update_item(item_id: int, item: Item2):
+#     results = {"item_id": item_id, "item": item}
+#     return results
+
+
+# usando un subModelo como tipo de atributo de otro modelo
+# class Image(BaseModel):
+#     url: str
+#     name: str
+
+# class Item3(BaseModel):
+#     name: str
+#     description: str | None = None
+#     price: float
+#     tax: float | None = None
+#     tags: set[str] = set()
+#     image: Image | None = None
+
+# @app.put("/items/{item_id}")
+# async def update_item(item_id: int, item: Item3):
+#     results = {"item_id": item_id, "item": item}
+#     return results
+# {
+#     "name": "Foo",
+#     "description": "The pretender",
+#     "price": 42.0,
+#     "tax": 3.2,
+#     "tags": ["rock", "metal", "bar"],
+#     "image": {
+#         "url": "http://example.com/baz.jpg",
+#         "name": "The Foo live"
+#     }
+# }
+
+class Image(BaseModel):
+    url: HttpUrl # tipo dato exotico de pydantic
     name: str
-    description: str | None = Field(
-        default=None, title="The description of the item", max_length=300
-    )
-    price: float = Field(gt=0, description="The price must be greater than zero")
+
+
+class Item4(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
     tax: float | None = None
+    tags: set[str] = set()
+    images: list[Image] | None = None
 
 
-@app.put("/items/{item_id}")
-async def update_item(item_id: int, item: Item2):
-    results = {"item_id": item_id, "item": item}
-    return results
+# @app.put("/items/{item_id}")
+# async def update_item(item_id: int, item: Item4):
+#     results = {"item_id": item_id, "item": item}
+#     return results
+# {
+#     "name": "Foo",
+#     "description": "The pretender",
+#     "price": 42.0,
+#     "tax": 3.2,
+#     "tags": [
+#         "rock",
+#         "metal",
+#         "bar"
+#     ],
+#     "images": [
+#         {
+#             "url": "http://example.com/baz.jpg",
+#             "name": "The Foo live"
+#         },
+#         {
+#             "url": "http://example.com/dave.jpg",
+#             "name": "The Baz"
+#         }
+#     ]
+# }
+
+class Offer(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
+    items: list[Item]
+    
+@app.post("/offers/")
+async def create_offer(offer: Offer):
+    return offer
+
+# Definir el ejemplo de los datos =>
+# class Item5(BaseModel):
+#     name: str
+#     description: str | None = None
+#     price: float
+#     tax: float | None = None
+
+#     class Config:
+#         schema_extra = {
+#             "example": {
+#                 "name": "Foo",
+#                 "description": "A very nice Item",
+#                 "price": 35.4,
+#                 "tax": 3.2,
+#             }
+#         }
+
+# o de otra manera =>
+class Item5(BaseModel):
+    name: str = Field(example="Foo")
+    description: str | None = Field(default=None, example="A very nice Item")
+    price: float = Field(example=35.4)
+    tax: float | None = Field(default=None, example=3.2)
+
+# @app.put("/items/{item_id}")
+# async def update_item(item_id: int, item: Item5):
+#     results = {"item_id": item_id, "item": item}
+#     return results
+
+
+# response model =>
+class Item6(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
+    tax: float | None = None
+    tags: list[str] = []
+
+
+@app.post("/items6/", response_model=Item6)
+async def create_item(item: Item):
+    return item
+
+class UserIn(BaseModel):
+    username: str
+    password: str
+    email: EmailStr
+    full_name: str | None = None
+    
+class UserOut(BaseModel):
+    username: str
+    email: EmailStr
+    full_name: str | None = None
+    
+# # Don't do this in production!
+# @app.post("/user/", response_model=UserIn)
+# async def create_user(user: UserIn):
+#     return user
+# se retorna un usuario de salida sin la clave
+@app.post("/user/", response_model=UserOut)
+async def create_user(user: UserIn):
+    return user
+
+
+class Item7(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
+    tax: float = 10.5
+    tags: list[str] = []
+
+
+items7 = {
+    "foo": {"name": "Foo", "price": 50.2},
+    "bar": {"name": "Bar", "description": "The bartenders", "price": 62, "tax": 20.2},
+    "baz": {"name": "Baz", "description": None, "price": 50.2, "tax": 10.5, "tags": []},
+}
+
+# con 'response_model_exclude_unset' los datos default no se envian a db ni response
+@app.get("/items7/{item_id}", response_model=Item7, response_model_exclude_unset=True)
+async def read_item(item_id: str):
+    return items7[item_id]
+
+class Item8(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
+    tax: float = 10.5
+
+
+item8 = {
+    "foo": {"name": "Foo", "price": 50.2},
+    "bar": {"name": "Bar", "description": "The Bar fighters", "price": 62, "tax": 20.2},
+    "baz": {
+        "name": "Baz",
+        "description": "There goes my baz",
+        "price": 50.2,
+        "tax": 10.5,
+    },
+}
+
+@app.get(
+    "/items8/{item_id}/name",
+    response_model=Item8,
+    response_model_include={"name", "description"},
+)
+async def read_item_name(item_id: str):
+    return items8[item_id]
+
+
+@app.get("/items8/{item_id}/public", response_model=Item8, response_model_exclude={"tax"})
+async def read_item_public_data(item_id: str):
+    return items8[item_id]
