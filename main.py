@@ -2,7 +2,7 @@
 # Iniciar el servidor: uvicorn main:app --reload
 
 from typing_extensions import Required
-from fastapi import FastAPI, Query, Path, Body
+from fastapi import FastAPI, Query, Path, Body, status, Form, File, UploadFile
 from enum import Enum
 from typing import Union
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
@@ -429,7 +429,7 @@ class Item8(BaseModel):
     tax: float = 10.5
 
 
-item8 = {
+items8 = {
     "foo": {"name": "Foo", "price": 50.2},
     "bar": {"name": "Bar", "description": "The Bar fighters", "price": 62, "tax": 20.2},
     "baz": {
@@ -452,3 +452,19 @@ async def read_item_name(item_id: str):
 @app.get("/items8/{item_id}/public", response_model=Item8, response_model_exclude={"tax"})
 async def read_item_public_data(item_id: str):
     return items8[item_id]
+
+
+# manejor de form y codigos de status, los atributos name del html deben llamarse igual
+# que los argumentos de funcion del metodo http
+@app.post("/login/", status_code=status.HTTP_201_CREATED)
+async def login(username: str = Form(default=None), password: str = Form(default=None)):
+    return {"username": username}
+
+@app.post("/files/")
+async def create_file(file: bytes | None = File(default=None)):
+    return {"file_size": len(file)}
+
+# preferiblemente usar 'UploadFile' tiene mas ventajas sonbre el otro https://fastapi.tiangolo.com/es/tutorial/request-files/
+@app.post("/uploadfile/")
+async def create_upload_file(file: UploadFile | None = None):
+    return {"filename": file.filename}
